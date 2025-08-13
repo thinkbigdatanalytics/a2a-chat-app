@@ -1,25 +1,15 @@
 {
-  "mcpServers": {
-    "github-mcp-server": {
-      "command": "docker",
+  "servers": {
+    "mcp-server": {
+      "type": "stdio",
+      "command": "node",
       "args": [
-        "run",
-        "-i",
-        "--rm",
-        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
-        "ghcr.io/github/github-mcp-server"
+        "D:/Anish/New folder/ADK_2/MCP/server.js"
       ],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "git_token..."
+        "GITHUB_TOKEN": "gittoken"
       }
-    },
-    "postgres": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/postgres",
-        "postgresql://postgres:postgres@localhost:5432/sample_db"
-      ]
     }
-  }
+  },
+  "inputs": []
 }
