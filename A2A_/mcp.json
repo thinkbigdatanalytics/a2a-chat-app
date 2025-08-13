@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "github-mcp-server": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "D:/Anish/New folder/ADK_2/MCP/server.js"
+      ],
+	  "env": {
+        "GITHUB_TOKEN": "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"
+      }
+    }
+  },
+  "inputs": []
+}
