@@ -1,5 +1,5 @@
 from google.adk.agents import Agent
-from MCP.math_toolsets import addition_toolset
+from Mathematical.MCP.math_toolsets import addition_toolset
 
 import os
 os.environ["GOOGLE_API_KEY"] = "AIzaSyAoZE9lxGoHyZVituaH9KRXcV5GO1Qn900"

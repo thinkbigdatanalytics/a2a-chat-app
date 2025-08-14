@@ -5,34 +5,39 @@ addition_toolset = MCPToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command="python",
-            args=[r"D:\Anish\New folder\ADK_2\MCP\addition_server.py"]
+            args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\addition_server.py"]
         )
     )
+    
+
 )
 
 subtraction_toolset = MCPToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command="python",
-            args=[r"D:\Anish\New folder\ADK_2\MCP\subtraction_server.py"]
+            args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\subraction_server.py"]
         )
     )
+    
 )
 
 multiplication_toolset = MCPToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command="python",
-            args=[r"D:\Anish\New folder\ADK_2\MCP\multiplication_server.py"]
+            args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\multiplication_server.py"]
         )
     )
+    
 )
 
 division_toolset = MCPToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
             command="python",
-            args=[r"D:\Anish\New folder\ADK_2\MCP\division_server.py"]
+            args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\division_server.py"]
         )
     )
+    
 )
