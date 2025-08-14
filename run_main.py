@@ -11,7 +11,6 @@ USER_ID = "user1"
 SESSION_ID = "session_1"
 os.environ["GOOGLE_API_KEY"] = "AIzaSyAoZE9lxGoHyZVituaH9KRXcV5GO1Qn900"
 
-# Create session
 session_service = InMemorySessionService()
 session_service.create_session_sync(
     app_name=APP_NAME,
@@ -19,7 +18,6 @@ session_service.create_session_sync(
     session_id=SESSION_ID
 )
 
-# Create runner
 runner = Runner(
     app_name=APP_NAME,
     agent=main_math_agent,
