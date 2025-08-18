@@ -1,16 +1,30 @@
-from mcp.server.fastmcp import FastMCP
+# math_server.py
+from fastmcp import FastMCP
 from datetime import datetime
 
-mcp = FastMCP("Addition MCP Server")
+mcp = FastMCP("Math MCP Server")
+
 
 @mcp.tool()
 def add(a: float, b: float) -> float:
-    """Add two numbers"""
-    log_line = f"[{datetime.now()}] addition_agent.add called with a={a}, b={b}"
-    print(log_line)
-    with open("math_trace.log", "a") as f:
-        f.write(log_line + "\n")
     return a + b
 
+@mcp.tool()
+def sub(a: float, b: float) -> float:
+    return a - b
+
+@mcp.tool()
+def mul(a: float, b: float) -> float:
+    return a * b
+
+@mcp.tool()
+def div(a: float, b: float) -> float:
+    return a / b if b != 0 else float("inf")
+
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(
+        transport="http",
+        host="0.0.0.0",
+        port=8001,
+        path="/mcp"   # important for your agent configs
+    )

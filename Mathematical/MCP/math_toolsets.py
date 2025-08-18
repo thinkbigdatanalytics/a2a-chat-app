@@ -1,6 +1,8 @@
+
 from google.adk.tools.mcp_tool import MCPToolset
 from google.adk.tools.mcp_tool.mcp_toolset import StdioConnectionParams, StdioServerParameters
 
+# Define MCP toolsets
 addition_toolset = MCPToolset(
     connection_params=StdioConnectionParams(
         server_params=StdioServerParameters(
@@ -8,8 +10,6 @@ addition_toolset = MCPToolset(
             args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\addition_server.py"]
         )
     )
-    
-
 )
 
 subtraction_toolset = MCPToolset(
@@ -19,7 +19,6 @@ subtraction_toolset = MCPToolset(
             args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\subraction_server.py"]
         )
     )
-    
 )
 
 multiplication_toolset = MCPToolset(
@@ -29,7 +28,6 @@ multiplication_toolset = MCPToolset(
             args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\multiplication_server.py"]
         )
     )
-    
 )
 
 division_toolset = MCPToolset(
@@ -39,5 +37,5 @@ division_toolset = MCPToolset(
             args=[r"D:\Anish\TLQ\a2a-chat-app\Mathematical\MCP\division_server.py"]
         )
     )
-    
 )
+

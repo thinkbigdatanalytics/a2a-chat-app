@@ -1,16 +1,10 @@
-from mcp.server.fastmcp import FastMCP
-from datetime import datetime
+from fastmcp import Client
+import asyncio
 
-mcp = FastMCP("Division MCP Server")
-
-@mcp.tool()
-def division(a: float, b: float) -> float:
-    log_line = f"[{datetime.now()}] division_agent.division called with a={a}, b={b}"
-    print(log_line)
-    with open("math_trace.log", "a") as f:
-        f.write(log_line + "\n")
-    """Divide two numbers"""
-    return a / b
-
-if __name__ == "__main__":
-   mcp.run(transport="stdio")
+async def main():
+    async with Client("http://localhost:8001/mcp") as client:
+        tools = await client.list_tools()
+        print("Available tools:", [t.name for t in tools])
+        result = await client.call_tool("add", {"a": 5, "b": 7})
+        print("Result:", result.data)
+asyncio.run(main())
