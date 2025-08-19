@@ -1,70 +1,74 @@
 # All_Agent.py
-import os
-import asyncio
 from google.adk.agents import Agent
-from google.adk.sessions import InMemorySessionService
-from google.adk.runners import Runner
-from google.adk.tools.mcp_tool.mcp_toolset import MCPToolset, StreamableHTTPConnectionParams
+from google.adk.tools.mcp_tool import MCPToolset
+from google.adk.tools.mcp_tool.mcp_toolset import (
+    StdioConnectionParams,
+    StdioServerParameters)
+import os
 
 os.environ["GOOGLE_API_KEY"] = "AIzaSyAoZE9lxGoHyZVituaH9KRXcV5GO1Qn900"
 
-# ✅ Define bare agents (no tools yet)
+
+
+def initiate_toolset(tool_name: str, command: str, path: str, timeout: int = 3000):
+    class TimeoutMCPToolset(MCPToolset):
+        def __init__(self, *, tool_name: str, connection_params, timeout=30, **kwargs):
+            self.tool_name = tool_name
+
+            # Inject timeout into StdioConnectionParams
+            if isinstance(connection_params, StdioConnectionParams):
+                connection_params = StdioConnectionParams(
+                    server_params=connection_params.server_params,
+                    timeout=timeout,
+                )
+            super().__init__(connection_params=connection_params, **kwargs)
+
+    toolset_instance = TimeoutMCPToolset(
+        tool_name=tool_name,
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command=command,
+                args=[path]
+            ),
+            timeout=timeout,
+        ),
+        timeout=timeout,
+    )
+
+    return toolset_instance
+
+def initiate_agent()
+
+
+
+# No need for asyncio.run(toolset.connect()) — ADK handles it
+
 add_agent = Agent(
     name="add_agent",
     model="gemini-2.5-pro",
-    instruction="You are an addition assistant. Always use the MCP `add` tool."
+    instruction="You are an addition assistant. Always use the MCP `add` tool.",
+    tools=[toolset]
 )
 
 sub_agent = Agent(
     name="sub_agent",
     model="gemini-2.5-pro",
-    instruction="You are a subtraction assistant. Always use the MCP `sub` tool."
+    instruction="You are a subtraction assistant. Always use the MCP `sub` tool.",
+    tools=[toolset]
 )
 
 mul_agent = Agent(
     name="mul_agent",
     model="gemini-2.5-pro",
-    instruction="You are a multiplication assistant. Always use the MCP `mul` tool."
+    instruction="You are a multiplication assistant. Always use the MCP `mul` tool.",
+    tools=[toolset]
 )
 
 div_agent = Agent(
     name="div_agent",
     model="gemini-2.5-pro",
-    instruction="You are a division assistant. Always use the MCP `div` tool."
+    instruction="You are a division assistant. Always use the MCP `div` tool.",
+    tools=[toolset]
 )
 
 all_agents = [add_agent, sub_agent, mul_agent, div_agent]
-
-
-# ✅ Attach tools dynamically inside the test function
-async def test_mcp_agents():
-    # Create MCP toolset once
-    toolset = MCPToolset(
-        connection_params=StreamableHTTPConnectionParams(
-            url="http://localhost:8001/mcp",
-            headers={"Accept": "text/event-stream"}
-        )
-    )
-
-    # Attach the toolset to each agent here
-    for agent in all_agents:
-        agent.tools = [toolset]
-
-    session_service = InMemorySessionService()
-    runner = Runner(session_service=session_service)
-
-    test_inputs = {
-        "add_agent": "Add 5 and 7",
-        "sub_agent": "Subtract 4 from 10",
-        "mul_agent": "Multiply 3 and 6",
-        "div_agent": "Divide 20 by 5"
-    }
-
-    for agent in all_agents:
-        print(f"\n🔹 Running {agent.name} ...")
-        response = await runner.run(agent, test_inputs[agent.name])
-        print(f"{agent.name} response: {response.output_text}")
-
-
-if __name__ == "__main__":
-    asyncio.run(test_mcp_agents())
