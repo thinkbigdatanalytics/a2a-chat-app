@@ -46,7 +46,6 @@ def initiate_toolset(tool_name: str, command: str, timeout: int = 3000, **kwargs
                 )
             super().__init__(connection_params=connection_params, **kwargs)
 
-    # Determine connection parameters based on command
     if command == "npx":
         conn_params = StdioConnectionParams(
             server_params=StdioServerParameters(command="npx", args=[kwargs.get("npx_command", "")]),
@@ -57,6 +56,13 @@ def initiate_toolset(tool_name: str, command: str, timeout: int = 3000, **kwargs
             server_params=StdioServerParameters(command="curl", args=[kwargs.get("url", "")]),
             timeout=timeout,
         )
+    elif command == "azure_ai":
+        conn_params = {
+            "endpoint": kwargs.get("endpoint"),
+            "api_key": kwargs.get("api_key"),
+            "version": kwargs.get("version"),
+            "deployment": kwargs.get("deployment"),
+        }
     elif command == "sse":
         conn_params = StdioConnectionParams(
             server_params=StdioServerParameters(command="sse-client", args=[kwargs.get("sse_url", "")]),
@@ -71,14 +77,12 @@ def initiate_toolset(tool_name: str, command: str, timeout: int = 3000, **kwargs
         )
     elif command == "python":
         script_path = kwargs.get("script_path", "")
-        # Ensure path works in Linux/Windows
         script_path = script_path.replace("\\", "/")
         conn_params = StdioConnectionParams(
             server_params=StdioServerParameters(command="python", args=[script_path]),
             timeout=timeout,
         )
     else:
-        # Fallback for custom commands
         conn_params = StdioConnectionParams(
             server_params=StdioServerParameters(command=command, args=[kwargs.get("path", "")]),
             timeout=timeout,
@@ -144,6 +148,14 @@ def load_agent_from_db(agent_id):
             kwargs = {"command": parts[0], "args": parts[1:]}
         elif command == "python":
             kwargs = {"script_path": args}
+        elif command == "azure_ai":
+            # Pull Azure configs from environment
+            kwargs = {
+                "endpoint": os.getenv("AZURE_OPENAI_ENDPOINT"),
+                "api_key": os.getenv("AZURE_OPENAI_API_KEY"),
+                "version": os.getenv("AZURE_OPENAI_API_VERSION"),
+                "deployment": os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            }
         else:
             kwargs = {"path": args}
 
@@ -151,31 +163,18 @@ def load_agent_from_db(agent_id):
             initiate_toolset(tool_name=t_name, command=command, timeout=3000, **kwargs)
         )
 
-    if agent.api_key:
-        if agent.provider.lower() == "google":
+        if agent.api_key and agent.provider == "Google":
             os.environ["GOOGLE_API_KEY"] = agent.api_key
-        elif agent.provider.lower() == "openai":
-            os.environ["OPENAI_API_KEY"] = agent.api_key
-        elif agent.provider.lower() == "azure_openai":
-            os.environ["AZURE_OPENAI_API_KEY"] = agent.api_key
-        elif agent.provider.lower() == "anthropic":
-            os.environ["ANTHROPIC_API_KEY"] = agent.api_key
-        elif agent.provider.lower() == "mistral":
-            os.environ["MISTRAL_API_KEY"] = agent.api_key
-        elif agent.provider.lower() == "local":
-            os.environ["LOCAL_MODEL_PATH"] = agent.api_key
 
     return {
         "id": agent.id,
-        "provider": agent.provider,
         "agent": Agent(
             name=agent.name,
             model=agent.model,
             instruction=agent.instruction,
-            tools=toolsets
+            tools=toolsets,
         )
     }
-
 APP_NAME = "math_app"
 USER_ID = "user1"
 SESSION_ID = "session_1"

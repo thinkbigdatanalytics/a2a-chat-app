@@ -17,7 +17,7 @@ class Agents(Base):
     model = Column(String, nullable=False)
     instruction = Column(String, nullable=False)
     api_key = Column(String, nullable=True)
-    api_config = Column(Js)
+    # api_config = Column(Js)
 
     toolsets = relationship("AgentToolsetModel", back_populates="agent")
 
