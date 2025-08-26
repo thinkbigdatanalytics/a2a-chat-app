@@ -6,8 +6,9 @@ import pandas as pd
 import streamlit as st
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
-from db import get_all_agents, get_all_tools_by_id, add_toolset, get_toolsets, update_toolset, delete_toolset, \
-    add_agent, update_agent, get_agents, delete_agent, get_toolsets_for_agent
+from db import add_toolset, get_toolsets, update_toolset, delete_toolset, \
+    add_agent, update_agent, get_agents, delete_agent, get_toolsets_for_agent, get_session, \
+    AgentConfig
 
 st.set_page_config(page_title="Toolset + Agent Manager", page_icon="", layout="wide")
 st.title("Toolset Manager")
@@ -153,8 +154,6 @@ with tab3:
     # Model selection based on provider
     if provider == "Google":
         model = st.selectbox("Model", google_model)
-    elif provider == "Azure_OPENAI":
-        model = st.selectbox("Model", azure_ai)
     elif provider == "OpenAI":
         model = st.selectbox("Model", openai_model)
     elif provider == "Anthropic":
@@ -170,14 +169,9 @@ with tab3:
         api_key = st.text_input("Azure API Key", type="password")
         endpoint = st.text_input("Azure Endpoint (e.g. https://xxxx.openai.azure.com/)")
         version = st.text_input("API Version", value="2024-12-01-preview")
-        deployment = st.text_input("Deployment Name", value="ds-gpt-4o-mini")
+        deployment = st.text_input("Deployment", value="ds-gpt-4o-mini")
+        deployment_name = st.text_input("Deployment Name", value="ds-gpt-4o-mini")
 
-        api_config = {
-            "api_key": api_key,
-            "endpoint": endpoint,
-            "version": version,
-            "deployment": deployment,
-        }
     else:
         api_key = st.text_input("API Key", type="password")
         api_config = {"api_key": api_key}
@@ -186,17 +180,19 @@ with tab3:
     selected_names = st.multiselect("Select Toolsets", list(toolset_options.keys()))
 
     if st.button("Save Agent"):
-        if name and provider and model and instruction:
+        if name and provider  and instruction:
             try:
-                import json
                 add_agent(
-                    name,
-                    provider,
-                    model,
-                    instruction,
-                    json.dumps(api_config),
-                    None,
-                    [toolset_options[n] for n in selected_names]
+                    name=name,
+                    provider=provider,
+                    model=deployment,
+                    instruction=instruction,
+                    api_key=api_key,
+                    AZURE_OPENAI_API_VERSION=version,
+                    AZURE_OPENAI_ENDPOINT=endpoint,
+                    AZURE_OPENAI_DEPLOYMENT=deployment,
+                    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=deployment_name,
+                    toolset_ids=[toolset_options[n] for n in selected_names]
                 )
                 st.success(f"Agent '{name}' ({provider}, {model}) saved successfully!")
             except Exception as e:
@@ -214,7 +210,11 @@ with tab4:
             "Provider": a.provider,
             "Model": a.model,
             "Instruction": a.instruction,
-            "API Key": a.api_key if a.api_key else ""
+            "API Key": a.api_key or "",
+        "Endpoint": a.AZURE_OPENAI_ENDPOINT or "",
+        "Version": a.AZURE_OPENAI_API_VERSION or "",
+        "Deployment": a.AZURE_OPENAI_DEPLOYMENT or "",
+        "Chat Deployment": a.AZURE_OPENAI_CHAT_DEPLOYMENT_NAME or ""
         } for a in agents])
 
         edited_df = st.data_editor(df_agents, use_container_width=True, num_rows="dynamic")
@@ -254,50 +254,87 @@ with tab4:
     else:
         st.info("No agents found. Add one in 'Add Agent' tab.")
 
+
+def save_config_to_db(session, agent_id, provider, model, api_key, endpoint, version, deployment, scope):
+    pass
+
+
 with tab5:
-    st.subheader("Setup Agent Configuration")
+    st.subheader("⚙️ Setup Agent Configuration")
 
-    # Step 1: Select main agent
     agent_providers = ["Google", "Azure_OPENAI", "OpenAI", "Anthropic", "Mistral", "Local"]
-    selected_provider = st.selectbox("Select Main Agent", agent_providers)
+    selected_provider = st.selectbox("Select Main Agent Provider", agent_providers)
 
-    # Step 2: Enter API Key
-    api_key = st.text_input(f"Enter API Key for {selected_provider}", type="password")
+    # Default values
+    model, api_key, endpoint, version, deployment = None, None, None, None, None
 
-    # Step 3: Choose scope (for all agents OR only this one)
+    # Provider specific fields
+    if selected_provider == "Azure_OPENAI":
+        api_key = st.text_input("Azure API Key", type="password")
+        endpoint = st.text_input("Azure Endpoint", value="https://xxxx.openai.azure.com/")
+        version = st.text_input("API Version", value="2024-12-01-preview")
+        deployment = st.text_input("Deployment", value="ds-gpt-4o-mini")
+        model = deployment
+    elif selected_provider == "Google":
+        api_key = st.text_input("Google API Key", type="password")
+        model = st.selectbox("Model", ["gemini-2.5-pro", "gemini-1.5-flash"])
+    elif selected_provider == "OpenAI":
+        api_key = st.text_input("OpenAI API Key", type="password")
+        model = st.selectbox("Model", ["gpt-4o-mini", "gpt-4-turbo"])
+    elif selected_provider == "Anthropic":
+        api_key = st.text_input("Anthropic API Key", type="password")
+        model = st.selectbox("Model", ["claude-3-sonnet", "claude-3-haiku"])
+    elif selected_provider == "Mistral":
+        api_key = st.text_input("Mistral API Key", type="password")
+        model = st.selectbox("Model", ["mistral-large", "mixtral-8x7b"])
+    elif selected_provider == "Local":
+        model = st.text_input("Local Model Name", "llama3")
+
     apply_scope = st.radio(
-        "Do you want to set the API key for:",
-        ["Only this agent", "All agents"]
+        "Apply configuration to:",
+        ["Only Main Agent", "Only Sub Agents", "All Agents"]
     )
 
-
-    def update_api_key_for_agent(provider, api_key):
-        agents = get_agents()
-        for a in agents:
-            if a.provider == provider:
-                update_agent(
-                    agent_id=a.id,
-                    name=a.name,
-                    provider=a.provider,
-                    model=a.model,
-                    instruction=a.instruction,
-                    api_key=api_key
-                )
-
-
-    if st.button("Save Configuration"):
-        if not api_key.strip():
-            st.error("API Key cannot be empty.")
+    if st.button("💾 Save Configuration"):
+        if not model or (not api_key and selected_provider != "Local"):
+            st.error("Please provide required values.")
         else:
-            if apply_scope == "Only this agent":
-                # Save API key only for the selected agent
-                update_api_key_for_agent(selected_provider, api_key)
-                st.success(f"API Key set for {selected_provider} only.")
-            else:
-                # Save API key for all agents
-                for provider in agent_providers:
-                    update_api_key_for_agent(provider, api_key)
-                st.success("API Key set for all agents successfully!")
+            with get_session() as session:
+                # Save config for agent_id = 1 (main agent) for now
+                save_config_to_db(
+                    session=session,
+                    agent_id=1,
+                    provider=selected_provider,
+                    model=model,
+                    api_key=api_key,
+                    endpoint=endpoint,
+                    version=version,
+                    deployment=deployment,
+                    scope=apply_scope
+                )
+            st.success(f"Configuration saved for {selected_provider} ({apply_scope}).")
+
+    st.subheader("Current Agent Configurations")
+
+    with get_session() as session:
+        configs = session.query(AgentConfig).all()
+        if configs:
+            config_data = [
+                {
+                    "Agent ID": c.agent_id,
+                    "Provider": c.provider,
+                    "Model": c.model,
+                    "API Key": "••••••" if c.api_key else None,
+                    "Endpoint": c.AZURE_OPENAI_ENDPOINT,
+                    "Version": c.AZURE_OPENAI_API_VERSION,
+                    "Deployment": c.AZURE_OPENAI_DEPLOYMENT,
+                    "Scope": c.scope
+                }
+                for c in configs
+            ]
+            st.table(config_data)
+        else:
+            st.info("No configurations found.")
 
 
 

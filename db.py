@@ -17,11 +17,31 @@ class Agents(Base):
     model = Column(String, nullable=False)
     instruction = Column(String, nullable=False)
     api_key = Column(String, nullable=True)
-    # api_config = Column(Js)
+    AZURE_OPENAI_API_VERSION = Column(String, nullable=True)
+    AZURE_OPENAI_ENDPOINT = Column(String,nullable=True)
+    AZURE_OPENAI_DEPLOYMENT = Column(String, nullable=True)
+    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME = Column(String,nullable=True)
+
+    config = relationship("AgentConfig", back_populates="agent", uselist=False)
 
     toolsets = relationship("AgentToolsetModel", back_populates="agent")
 
 
+
+class AgentConfig(Base):
+    __tablename__ = "agent_config"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"), nullable=False)
+
+    api_key = Column(String, nullable=True)
+
+    AZURE_OPENAI_API_VERSION = Column(String, nullable=True)
+    AZURE_OPENAI_ENDPOINT = Column(String, nullable=True)
+    AZURE_OPENAI_DEPLOYMENT = Column(String, nullable=True)
+    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME = Column(String, nullable=True)
+
+    agent = relationship("Agents", back_populates="config")
 class ToolsetModel(Base):
     __tablename__ = "toolsets"
     id = Column(Integer, primary_key=True, index=True)
@@ -73,6 +93,8 @@ def add_toolset(name, command, args):
         session.commit()
 
 
+
+
 def get_toolsets():
     with get_session() as session:
         return session.query(ToolsetModel).all()
@@ -96,9 +118,9 @@ def delete_toolset(toolset_id):
             session.commit()
 
 
-def add_agent(name, provider, model, instruction,api_config = None, api_key=None, toolset_ids=None):
+def add_agent(name, provider, model, instruction, api_key=None,AZURE_OPENAI_API_VERSION = None ,AZURE_OPENAI_ENDPOINT=None,AZURE_OPENAI_DEPLOYMENT=None,AZURE_OPENAI_CHAT_DEPLOYMENT_NAME= None, toolset_ids=None):
     with get_session() as session:
-        agent = Agents(name=name, provider=provider, model=model, instruction=instruction, api_key=api_key)
+        agent = Agents(name=name, provider=provider, model=model, instruction=instruction, api_key=api_key,AZURE_OPENAI_API_VERSION=AZURE_OPENAI_API_VERSION,AZURE_OPENAI_ENDPOINT=AZURE_OPENAI_ENDPOINT,AZURE_OPENAI_DEPLOYMENT=AZURE_OPENAI_DEPLOYMENT,AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=AZURE_OPENAI_CHAT_DEPLOYMENT_NAME)
         session.add(agent)
         session.commit()
 
