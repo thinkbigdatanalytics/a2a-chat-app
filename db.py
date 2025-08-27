@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 
@@ -33,13 +35,15 @@ class AgentConfig(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     agent_id = Column(Integer, ForeignKey("agents.id"), nullable=False)
-
+    provider = Column(String, nullable=True)
+    model = Column(String, nullable=True)
     api_key = Column(String, nullable=True)
-
+    scope = Column(String, nullable=True)
     AZURE_OPENAI_API_VERSION = Column(String, nullable=True)
     AZURE_OPENAI_ENDPOINT = Column(String, nullable=True)
     AZURE_OPENAI_DEPLOYMENT = Column(String, nullable=True)
     AZURE_OPENAI_CHAT_DEPLOYMENT_NAME = Column(String, nullable=True)
+    instruction = Column(String, nullable=True)
 
     agent = relationship("Agents", back_populates="config")
 class ToolsetModel(Base):
@@ -48,9 +52,43 @@ class ToolsetModel(Base):
     name = Column(String, unique=True, nullable=False)
     command = Column(String, nullable=False)
     args = Column(Text)
+    env = Column(Text, nullable=True)
 
     agents = relationship("AgentToolsetModel", back_populates="toolset")
 
+def save_config_to_db(
+    session,
+    agent_id,
+    provider,
+    model,
+    api_key=None,
+    endpoint=None,
+    version=None,
+    deployment=None,
+    scope=None,
+    instruction=None   # 🔹 Added
+):
+    from sqlalchemy.exc import SQLAlchemyError
+    try:
+        config = session.query(AgentConfig).filter_by(agent_id=agent_id).first()
+        if not config:
+            config = AgentConfig(agent_id=agent_id)
+            session.add(config)
+
+        config.api_key = api_key
+        config.model = model
+        config.provider = provider
+        config.AZURE_OPENAI_ENDPOINT = endpoint
+        config.AZURE_OPENAI_API_VERSION = version
+        config.AZURE_OPENAI_DEPLOYMENT = deployment
+        config.scope = scope
+        config.instruction = instruction
+
+        session.commit()
+        print(f"[INFO] Config saved for agent {agent_id} (provider={provider}, model={model})")
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"[ERROR] Failed to save config for agent {agent_id}: {str(e)}")
 
 class AgentToolsetModel(Base):
     __tablename__ = "agent_toolsets"
@@ -78,7 +116,7 @@ def get_all_agents():
 def get_all_tools_by_id(agent_id):
     with get_session() as session:
         tools = (
-            session.query(ToolsetModel.name, ToolsetModel.command, ToolsetModel.args)
+            session.query(ToolsetModel.name, ToolsetModel.command, ToolsetModel.args,ToolsetModel.env)
             .join(AgentToolsetModel, ToolsetModel.id == AgentToolsetModel.toolset_id)
             .filter(AgentToolsetModel.agent_id == agent_id)
             .all()
@@ -86,31 +124,48 @@ def get_all_tools_by_id(agent_id):
         return tools
 
 
-def add_toolset(name, command, args):
+
+def add_toolset(name, command, args, env=None):
     with get_session() as session:
-        toolset = ToolsetModel(name=name, command=command, args=args)
+        existing = session.query(ToolsetModel).filter_by(name=name).first()
+        if existing:
+            raise ValueError(f"Toolset with name '{name}' already exists.")
+
+        toolset = ToolsetModel(
+            name=name,
+            command=command,
+            args=args,
+            env=json.dumps(env) if env else "{}"
+        )
         session.add(toolset)
         session.commit()
-
-
 
 
 def get_toolsets():
     with get_session() as session:
         return session.query(ToolsetModel).all()
 
+def get_agent_config(agent_id: int, provider: str = None):
+    with get_session() as session:
+        query = session.query(AgentConfig).filter_by(agent_id=agent_id)
+        # if provider:
+        #     query = query.filter_by(provider=provider)
+        return query.first()
 
-def update_toolset(toolset_id, name, command, args):
+def update_toolset(toolset_id, name, command, args, env=None):
+
     with get_session() as session:
         toolset = session.query(ToolsetModel).filter_by(id=toolset_id).first()
         if toolset:
             toolset.name = name
             toolset.command = command
             toolset.args = args
+            toolset.env = json.dumps(env) if env else toolset.env  # update env if provided
             session.commit()
 
 
 def delete_toolset(toolset_id):
+
     with get_session() as session:
         toolset = session.query(ToolsetModel).filter_by(id=toolset_id).first()
         if toolset:
@@ -136,7 +191,18 @@ def get_agents():
         return session.query(Agents).all()
 
 
-def update_agent(agent_id, name, provider, model, instruction, api_key=None):
+def update_agent(
+    agent_id,
+    name,
+    provider,
+    model,
+    instruction,
+    api_key=None,
+    endpoint=None,
+    version=None,
+    deployment=None,
+    chat_deployment=None
+):
     with get_session() as session:
         agent = session.query(Agents).filter_by(id=agent_id).first()
         if agent:
@@ -145,7 +211,13 @@ def update_agent(agent_id, name, provider, model, instruction, api_key=None):
             agent.model = model
             agent.instruction = instruction
             agent.api_key = api_key
+            agent.AZURE_OPENAI_ENDPOINT = endpoint
+            agent.AZURE_OPENAI_API_VERSION = version
+            agent.AZURE_OPENAI_DEPLOYMENT = deployment
+            agent.AZURE_OPENAI_CHAT_DEPLOYMENT_NAME = chat_deployment
+
             session.commit()
+
 
 
 def delete_agent(agent_id):
